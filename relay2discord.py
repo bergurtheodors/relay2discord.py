@@ -2,6 +2,7 @@ import znc
 import os
 import requests
 import string
+import time
 import re
 
 from datetime import datetime
@@ -51,14 +52,18 @@ class relay2discord(znc.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.discord = DiscordPinger()
-        self.discord.login('<username>', '<password>')
+        self.discord.login('username', 'password')
 
-        self.global_ping_id = '<regular ping channel>'
-        self.titan_ping_id = '<titan only pings>'
-        self.super_ping_id = '<super only pings>'
+        self.global_ping_id = '151628748670631936'
+        self.titan_ping_id = '153316816251387904'
+        self.super_ping_id = '153316816251387904'
         self.corp_name = 'HIGH_FLYERS'
 
         self.alert_from = ('FleetBot', )
+        self.last_msg_sent = ''
+        self.last_msg_sent_t = 0
+        # If the same message is repeated within this timeframe, ignore.
+        self.repeat_spam_threshold = 2
 
     def OnPrivMsg(self, nick, zmessage):
         from_user = nick.GetNick()
@@ -68,6 +73,14 @@ class relay2discord(znc.Module):
 
         message = re.sub(IRC_PATTERN, '', zmessage.s)
         notify_msg = '@everyone {} {:s}'.format(datetime.utcnow().strftime('%d/%m/%y %H:%M'), message)
+        current_time = time.time()
+
+        # Vince is probably spamming...
+        if (message == self.last_msg_sent) and ((current_time - self.last_msg_sent_t) < self.repeat_spam_threshold):
+            return znc.CONTINUE
+        
+        self.last_msg_sent = message
+        self.last_msg_sent_t = time.time()
 
         # Titan ONLY pings
         if 'TITANS' in message and 'SUPERCARRIERS' not in message:
