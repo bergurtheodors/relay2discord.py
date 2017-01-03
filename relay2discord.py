@@ -4,6 +4,7 @@ import requests
 import string
 import time
 import re
+import collections
 
 from datetime import datetime
 from random import randint as random_integer
@@ -23,11 +24,11 @@ class DiscordPinger(object):
     def __init__(self):
         self.headers = {}
 
-    def login(self, email, password):
-        payload = {'email': email, 'password': password}
+    def login(self, username, password):
+        payload = {'email': username, 'password': password}
         res = requests.post(self.LOGIN, json=payload)
         if res.status_code != 200:
-            raise Exception('Invalid Login')
+            raise Exception('Invalid Login: ', res.text)
 
         jresp = res.json()
 
@@ -52,18 +53,16 @@ class relay2discord(znc.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.discord = DiscordPinger()
-        self.discord.login('username', 'password')
+        self.discord.login('discord username', 'discord pass')
 
         self.global_ping_id = '151628748670631936'
         self.titan_ping_id = '153316816251387904'
         self.super_ping_id = '153316816251387904'
+        self.blops_id = '245239497652961281'
         self.corp_name = 'HIGH_FLYERS'
+        self.spam_control = collections.defaultdict(lambda: {'msg':'', 'count': 0})
 
         self.alert_from = ('FleetBot', )
-        self.last_msg_sent = ''
-        self.last_msg_sent_t = 0
-        # If the same message is repeated within this timeframe, ignore.
-        self.repeat_spam_threshold = 2
 
     def OnPrivMsg(self, nick, zmessage):
         from_user = nick.GetNick()
@@ -75,12 +74,17 @@ class relay2discord(znc.Module):
         notify_msg = '@everyone {} {:s}'.format(datetime.utcnow().strftime('%d/%m/%y %H:%M'), message)
         current_time = time.time()
 
-        # Vince is probably spamming...
-        if (message == self.last_msg_sent) and ((current_time - self.last_msg_sent_t) < self.repeat_spam_threshold):
-            return znc.CONTINUE
-        
-        self.last_msg_sent = message
-        self.last_msg_sent_t = time.time()
+        searchForUser = NCDOT_FORMAT.search(message).groups()
+        if len(searchForUser) == 3:
+            _, _, pingFrom = searchForUser
+            if self.spam_control[pingFrom]['msg'] == message:
+                self.spam_control[pingFrom]['count'] += 1
+            else:
+                self.spam_control[pingFrom]['msg'] = message
+                self.spam_control[pingFrom]['count'] = 0
+
+            if self.spam_control[pingFrom]['count'] >= 2:
+                return znc.CONTINUE
 
         # Titan ONLY pings
         if 'TITANS' in message and 'SUPERCARRIERS' not in message:
@@ -102,5 +106,8 @@ class relay2discord(znc.Module):
         # Global Ping's
         if 'NORTHERN_COALITION' in message or self.corp_name in message:
             self.discord.send_message(self.global_ping_id, notify_msg)
+
+        if 'BLACK_OPS' in message:
+            self.discord.send_message(self.blops_id, notify_msg)
 
         return znc.CONTINUE
