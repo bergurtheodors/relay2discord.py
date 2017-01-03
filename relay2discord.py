@@ -53,13 +53,13 @@ class relay2discord(znc.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.discord = DiscordPinger()
-        self.discord.login('discord username', 'discord pass')
+        self.discord.login('bergurbnet@gmail.com', 'Dozerinn7')
 
-        self.global_ping_id = '151628748670631936'
-        self.titan_ping_id = '153316816251387904'
-        self.super_ping_id = '153316816251387904'
-        self.blops_id = '245239497652961281'
-        self.corp_name = 'HIGH_FLYERS'
+        self.global_ping_id = '197117561895124992'
+        self.titan_ping_id = '265855883798380545'
+        self.super_ping_id = '265855822851080193'
+        self.blops_id = '261638636137742339'
+        self.corp_name = 'THE_COLLECTIVE'
         self.spam_control = collections.defaultdict(lambda: {'msg':'', 'count': 0})
 
         self.alert_from = ('FleetBot', )
